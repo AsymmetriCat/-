@@ -45,7 +45,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"实验所使用的运算设备: {device}")
 
 # 多层感知机
-class SimpleMLP(nn.Module):
+class MLP(nn.Module):
     def __init__(self, num_classes=40, input_dim=3*128*128, hidden_dim=[1024, 512, 256]):
         super().__init__()
         self.flatten = nn.Flatten()     # 对输入数据进行展平化处理
@@ -77,11 +77,11 @@ class SimpleMLP(nn.Module):
         return x
 
 # 简易卷积神经网络
-class SimpleCNN(nn.Module):
+class CNN(nn.Module):
     def __init__(self, num_classes=40):
         super().__init__()
         self.features = nn.Sequential(  # 特征提取
-            # 第一块卷积    输入: 3*128*128
+            # 输入: 3*128*128
             nn.Conv2d(            # 定义卷积层
                 in_channels=3,    # 输入RGB图像
                 out_channels=32,  # 设置卷积核数为32
@@ -94,7 +94,7 @@ class SimpleCNN(nn.Module):
                 kernel_size=2,    # 池化窗口尺寸
                 stride=2          # 步长大小
             ),  # 输出尺寸计算公式: out_size = (in_size-kernel_size+2*padding)/stride + 1
-            # 第二块卷积    输入: 32*64*64
+            # 输入: 32*64*64
             nn.Conv2d(
                 in_channels=32,
                 out_channels=64,
@@ -107,7 +107,7 @@ class SimpleCNN(nn.Module):
                 kernel_size=2,
                 stride=2
             ),
-            # 第三块卷积    输入: 64*32*32
+            # 输入: 64*32*32
             nn.Conv2d(
                 in_channels=64,
                 out_channels=128,
@@ -120,7 +120,7 @@ class SimpleCNN(nn.Module):
                 kernel_size=2,
                 stride=2
             ),
-            # 第四块卷积    输入: 128*16*16 最终输出: 256*8*8
+            # 输入: 128*16*16 最终输出: 256*8*8
             nn.Conv2d(
                 in_channels=128,
                 out_channels=256,
@@ -152,8 +152,8 @@ class SimpleCNN(nn.Module):
 # 定义损失函数
 loss_func = nn.BCEWithLogitsLoss()
 # 模型
-mlp_model = SimpleMLP().to(device)
-cnn_model = SimpleCNN().to(device)
+mlp_model = MLP().to(device)
+cnn_model = CNN().to(device)
 # 优化器 初始学习率设为0.001, L2正则化强度设为0.0001
 mlp_optim = torch.optim.Adam(mlp_model.parameters(), lr=1e-3, weight_decay=1e-4)
 cnn_optim = torch.optim.Adam(cnn_model.parameters(), lr=1e-3, weight_decay=1e-4)
@@ -256,7 +256,7 @@ def iteratively_train(training_loader, test_loader, model, loss_fn, optimizer,
 
 # 读取模型
 def load_model(model, model_path):
-    model.load_state_dict(torch.load(model_path, weights_only=True))  # 量化权重
+    model.load_state_dict(torch.load(model_path, weights_only=True))
 
 # CelebA的分类标签
 celeba_classes = [
@@ -280,7 +280,7 @@ def predict_image(model, image_path, threshold=0.5):
         with torch.no_grad():
             output = model(image_tensor)
             probs = torch.sigmoid(output).cpu().numpy()[0]  # 第一个样本即为需要预测的图像
-            preds = probs > threshold  # 二值
+            preds = probs > threshold
             return probs, preds
     except FileNotFoundError:
         raise FileNotFoundError(f'未找到图片{image_path}')
@@ -325,10 +325,10 @@ def test_model_by_celeba(model, test_loader, img_idx=0, sample_idx=0, threshold=
 def begin_to_train():
     print('MLP训练:')
     iteratively_train(training_dataloader, test_dataloader, mlp_model, loss_func,
-                      mlp_optim, mlp_sched, 'mlp.pth', 16)
+                      mlp_optim, mlp_sched, 'mlp.pth', 30)
     print('CNN训练:')
     iteratively_train(training_dataloader, test_dataloader, cnn_model, loss_func,
-                      cnn_optim, cnn_sched, 'cnn.pth', 16)
+                      cnn_optim, cnn_sched, 'cnn.pth', 30)
 
 def main():
     # begin_to_train()  # 如果还没训练, 先调用此函数
@@ -337,9 +337,7 @@ def main():
     # print('CelebA样本测试:')
     print('MLP结果:')
     # test_model_by_celeba(fnn_model, test_dataloader)
-    use_model(mlp_model, 'faces/Lecun.jpg')
     print('CNN测试结果:')
     # test_model_by_celeba(cnn_model, test_dataloader)
-    use_model(cnn_model, 'faces/Lecun.jpg')
 
 main()
